@@ -14,9 +14,9 @@
 
 #FIXME:(gongwb) Move brpc's gtest dependency.
 
-IF(WITH_TESTING)
-    ENABLE_TESTING()
-ENDIF()
+#IF(WITH_TESTING)
+ENABLE_TESTING()
+#ENDIF()
 
 INCLUDE(GNUInstallDirs)
 INCLUDE(ExternalProject)

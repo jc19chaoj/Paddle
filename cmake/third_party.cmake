@@ -245,10 +245,10 @@ if(WITH_PYTHON)
     list(APPEND third_party_deps extern_pybind)
 endif()
 
-IF(WITH_TESTING OR WITH_DISTRIBUTE)
+#IF(WITH_TESTING OR WITH_DISTRIBUTE)
     include(external/gtest)     # download, build, install gtest
     list(APPEND third_party_deps extern_gtest)
-ENDIF()
+# ENDIF()
 
 if(WITH_GPU)
     if (${CMAKE_CUDA_COMPILER_VERSION} LESS 11.0)

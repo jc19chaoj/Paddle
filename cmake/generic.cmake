@@ -413,6 +413,29 @@ function(cc_test_build TARGET_NAME)
   endif()
 endfunction()
 
+function(cc_test_build_chao TARGET_NAME)
+  if(NOT "$ENV{CI_SKIP_CPP_TEST}" STREQUAL "ON")
+    set(oneValueArgs "")
+    set(multiValueArgs SRCS DEPS)
+    cmake_parse_arguments(cc_test "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+    add_executable(${TARGET_NAME} ${cc_test_SRCS})
+    if(WIN32)
+      if("${cc_test_DEPS};" MATCHES "python;")
+        list(REMOVE_ITEM cc_test_DEPS python)
+        target_link_libraries(${TARGET_NAME} ${PYTHON_LIBRARIES})
+      endif()
+    endif(WIN32)
+    get_property(os_dependency_modules GLOBAL PROPERTY OS_DEPENDENCY_MODULES)
+    target_link_libraries(${TARGET_NAME} ${cc_test_DEPS} ${os_dependency_modules} paddle_gtest_main lod_tensor memory gtest gflags glog)
+    add_dependencies(${TARGET_NAME} ${cc_test_DEPS} paddle_gtest_main lod_tensor memory gtest gflags glog)
+    common_link(${TARGET_NAME})
+    if(WITH_ROCM)
+      target_link_libraries(${TARGET_NAME} ${ROCM_HIPRTC_LIB})
+    endif()
+    check_coverage_opt(${TARGET_NAME} ${cc_test_SRCS})
+  endif()
+endfunction()
+
 function(cc_test_run TARGET_NAME)
   if(WITH_TESTING AND NOT "$ENV{CI_SKIP_CPP_TEST}" STREQUAL "ON")
     set(oneValueArgs "")
@@ -465,6 +488,36 @@ function(cc_test TARGET_NAME)
     add_test(NAME ${TARGET_NAME} COMMAND ${CMAKE_COMMAND} -E echo CI skip ${TARGET_NAME}.)
   endif()
 endfunction(cc_test)
+
+function(cc_test_chao TARGET_NAME)
+    # The environment variable `CI_SKIP_CPP_TEST` is used to skip the compilation
+    # and execution of test in CI. `CI_SKIP_CPP_TEST` is set to ON when no files
+  # other than *.py are modified.
+  if(NOT "$ENV{CI_SKIP_CPP_TEST}" STREQUAL "ON")
+    set(oneValueArgs "")
+    set(multiValueArgs SRCS DEPS ARGS)
+    cmake_parse_arguments(cc_test "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+    cc_test_build_chao(${TARGET_NAME}
+	    SRCS ${cc_test_SRCS}
+	    DEPS ${cc_test_DEPS})
+    # we dont test hcom op, because it need complex configuration
+    # with more than one machine
+    if(NOT ("${TARGET_NAME}" STREQUAL "c_broadcast_op_npu_test"         OR
+            "${TARGET_NAME}" STREQUAL "c_allreduce_sum_op_npu_test"     OR
+            "${TARGET_NAME}" STREQUAL "c_allreduce_max_op_npu_test"     OR
+            "${TARGET_NAME}" STREQUAL "c_reducescatter_op_npu_test"     OR
+            "${TARGET_NAME}" STREQUAL "c_allgather_op_npu_test"         OR
+            "${TARGET_NAME}" STREQUAL "send_v2_op_npu_test"             OR
+            "${TARGET_NAME}" STREQUAL "c_reduce_sum_op_npu_test"        OR
+            "${TARGET_NAME}" STREQUAL "recv_v2_op_npu_test"))
+      cc_test_run(${TARGET_NAME}
+        COMMAND ${TARGET_NAME}
+        ARGS ${cc_test_ARGS})
+    endif()
+  elseif(NOT TEST ${TARGET_NAME})
+    add_test(NAME ${TARGET_NAME} COMMAND ${CMAKE_COMMAND} -E echo CI skip ${TARGET_NAME}.)
+  endif()
+endfunction(cc_test_chao)
 
 function(nv_library TARGET_NAME)
   if (WITH_GPU)
